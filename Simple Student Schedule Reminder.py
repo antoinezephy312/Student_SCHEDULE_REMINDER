@@ -15,7 +15,7 @@ DEFAULT_USERS = {
 }
 
 MANAGER_ROLES = {"admin", "instructor"}
-TERM_OPTIONS = ("Prelim", "Midterm")
+TERM_OPTIONS = ("Prelim", "Midterm", "Prefinals", "Finals")
 
 users = {}
 current_user = None
@@ -465,14 +465,48 @@ def open_main_window():
             return
 
         edit = tk.Toplevel(window)
-        edit.geometry("420x560")
+        edit.title("Edit Task")
+        edit.geometry("460x520")
         edit.configure(bg=BG)
 
-        tk.Label(edit, text="Edit Task", font=("Segoe UI", 22), bg=BG).pack(pady=15)
+        container = tk.Frame(edit, bg=BG)
+        container.pack(fill="both", expand=True)
+
+        canvas_edit = tk.Canvas(container, bg=BG, highlightthickness=0)
+        canvas_edit.pack(side="left", fill="both", expand=True)
+
+        edit_scroll = tk.Scrollbar(container, orient="vertical", command=canvas_edit.yview)
+        edit_scroll.pack(side="right", fill="y")
+        canvas_edit.configure(yscrollcommand=edit_scroll.set)
+
+        form = tk.Frame(canvas_edit, bg=BG)
+        form_id = canvas_edit.create_window((0, 0), window=form, anchor="nw")
+
+        def _edit_mousewheel(event):
+            canvas_edit.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas_edit.bind_all("<MouseWheel>", _edit_mousewheel)
+
+        def _resize_edit(event):
+            canvas_edit.itemconfig(form_id, width=event.width)
+
+        canvas_edit.bind("<Configure>", _resize_edit)
+
+        def _update_scroll(_event):
+            canvas_edit.configure(scrollregion=canvas_edit.bbox("all"))
+
+        form.bind("<Configure>", _update_scroll)
+
+        def _cleanup_edit(_event):
+            canvas_edit.unbind_all("<MouseWheel>")
+
+        edit.bind("<Destroy>", _cleanup_edit)
+
+        tk.Label(form, text="Edit Task", font=("Segoe UI", 22), bg=BG).pack(pady=15)
 
         def input_field(text, default):
-            tk.Label(edit, text=text, bg=BG, font=("Segoe UI", 12)).pack()
-            entry = tk.Entry(edit, width=30, font=("Segoe UI", 12))
+            tk.Label(form, text=text, bg=BG, font=("Segoe UI", 12)).pack()
+            entry = tk.Entry(form, width=30, font=("Segoe UI", 12))
             entry.insert(0, default)
             entry.pack(pady=5)
             return entry
@@ -496,9 +530,9 @@ def open_main_window():
         date_entry_modal = input_field("Deadline Date:", date_part)
         time_entry_modal = input_field("Deadline Time:", time_part)
 
-        tk.Label(edit, text="Term (Prelim/Midterm):", bg=BG, font=("Segoe UI", 12)).pack()
+        tk.Label(form, text="Term (Prelim/Midterm):", bg=BG, font=("Segoe UI", 12)).pack()
         term_var_modal = tk.StringVar(value=task["term"] or TERM_OPTIONS[0])
-        term_combo_modal = ttk.Combobox(edit, values=TERM_OPTIONS, textvariable=term_var_modal,
+        term_combo_modal = ttk.Combobox(form, values=TERM_OPTIONS, textvariable=term_var_modal,
                                         state="readonly", width=28, font=("Segoe UI", 12))
         term_combo_modal.pack(pady=5)
 
@@ -551,8 +585,8 @@ def open_main_window():
             refresh_task_table()
             edit.destroy()
 
-        tk.Button(edit, text="Save", bg=PRIMARY, fg="white",
-                  width=15, font=("Segoe UI", 12), command=save).pack(pady=20)
+        tk.Button(form, text="Save", bg=PRIMARY, fg="white",
+              width=15, font=("Segoe UI", 12), command=save).pack(pady=20)
 
     # ------------------ DELETE ------------------
     def delete_task():
